@@ -1,0 +1,128 @@
+# ============================================================
+# 📊 TELCO CHURN DASHBOARD
+# ============================================================
+
+import streamlit as st
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import plotly.express as px
+
+# ------------------------------------------------------------
+# 1️⃣ PAGE CONFIG
+# ------------------------------------------------------------
+st.set_page_config(
+    page_title="Telco Customer Churn Dashboard",
+    page_icon="📊",
+    layout="wide"
+)
+
+st.title("📊 Telco Customer Churn Insights Dashboard")
+st.markdown("Explore churn trends interactively — filter, visualize, and understand customer behavior.")
+
+# ------------------------------------------------------------
+# 2️⃣ LOAD DATA
+# ------------------------------------------------------------
+@st.cache_data
+def load_data():
+    df = pd.read_csv(r"C:\Users\jackk\Desktop\Desktop\Data Analysis, Engineering Projects\churn_predictor_eda/Data/cleaned_telco_churn.csv")
+    return df
+
+df = load_data()
+
+# ------------------------------------------------------------
+# 3️⃣ SIDEBAR FILTERS
+# ------------------------------------------------------------
+st.sidebar.header("🔍 Filter Data")
+
+gender = st.sidebar.multiselect(
+    "Gender", options=df["gender"].unique(), default=df["gender"].unique()
+)
+
+contract = st.sidebar.multiselect(
+    "Contract Type", options=df["Contract"].unique(), default=df["Contract"].unique()
+)
+
+internet = st.sidebar.multiselect(
+    "Internet Service", options=df["InternetService"].unique(), default=df["InternetService"].unique()
+)
+
+filtered_df = df[
+    (df["gender"].isin(gender)) &
+    (df["Contract"].isin(contract)) &
+    (df["InternetService"].isin(internet))
+]
+
+st.sidebar.markdown(f"**Total filtered customers:** {filtered_df.shape[0]}")
+
+# ------------------------------------------------------------
+# 4️⃣ KPI SECTION
+# ------------------------------------------------------------
+st.markdown("### Key Performance Indicators")
+
+col1, col2, col3 = st.columns(3)
+
+with col1:
+    total_customers = filtered_df.shape[0]
+    st.metric(label="👥 Total Customers", value=f"{total_customers:,}")
+
+with col2:
+    churn_rate = filtered_df["Churn"].mean() * 100
+    st.metric(label="📉 Churn Rate", value=f"{churn_rate:.1f}%")
+
+with col3:
+    avg_tenure = filtered_df["tenure"].mean()
+    st.metric(label="⏱️ Avg Tenure (months)", value=f"{avg_tenure:.1f}")
+
+st.divider()
+
+# ------------------------------------------------------------
+# 5️⃣ VISUALIZATIONS
+# ------------------------------------------------------------
+
+tab1, tab2, tab3 = st.tabs(["📈 Overview", "📊 Churn Breakdown", "📉 Correlation"])
+
+# ---- TAB 1: OVERVIEW ----
+with tab1:
+    st.subheader("Distribution of Customer Tenure")
+    fig1 = px.histogram(filtered_df, x="tenure", nbins=30, color="Churn", barmode="overlay")
+    st.plotly_chart(fig1, use_container_width=True)
+
+    st.subheader("Monthly Charges Distribution")
+    fig2 = px.histogram(filtered_df, x="MonthlyCharges", nbins=30, color="Churn", barmode="overlay")
+    st.plotly_chart(fig2, use_container_width=True)
+
+# ---- TAB 2: CHURN BREAKDOWN ----
+with tab2:
+    st.subheader("Churn Rate by Contract Type")
+    fig3 = px.bar(
+        filtered_df.groupby("Contract")["Churn"].mean().reset_index(),
+        x="Contract", y="Churn", color="Contract",
+        text=filtered_df.groupby("Contract")["Churn"].mean().mul(100).round(1).astype(str) + '%',
+        title="Churn Rate by Contract Type"
+    )
+    fig3.update_traces(textposition="outside")
+    st.plotly_chart(fig3, use_container_width=True)
+
+    st.subheader("Churn Rate by Internet Service")
+    fig4 = px.bar(
+        filtered_df.groupby("InternetService")["Churn"].mean().reset_index(),
+        x="InternetService", y="Churn", color="InternetService",
+        text=filtered_df.groupby("InternetService")["Churn"].mean().mul(100).round(1).astype(str) + '%',
+        title="Churn Rate by Internet Service"
+    )
+    fig4.update_traces(textposition="outside")
+    st.plotly_chart(fig4, use_container_width=True)
+
+# ---- TAB 3: CORRELATION ----
+with tab3:
+    st.subheader("Correlation Heatmap (Numeric Features Only)")
+    numeric_df = filtered_df.select_dtypes(include='number')
+
+    corr = numeric_df.corr()
+    fig, ax = plt.subplots(figsize=(10, 6))
+    sns.heatmap(corr, cmap="coolwarm", center=0, ax=ax)
+    st.pyplot(fig)
+
+st.markdown("---")
+st.caption("Built with ❤️ using Streamlit | Data: Telco Customer Churn Dataset")
